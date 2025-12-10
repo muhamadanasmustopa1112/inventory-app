@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\StockReportController;
 use App\Http\Controllers\Api\ProductUnitController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\ActivityLogController;
 
 
 
@@ -51,8 +52,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stock-out-summary', [StockReportController::class, 'stockOutSummary']);
 
     Route::get('/reports/sales', [ReportController::class, 'sales']);
+    Route::get('/reports/stock-out', [ReportController::class, 'stockOut']);
     Route::get('/reports/stock-in', [ReportController::class, 'stockIn']);     
     Route::get('/reports/stock-balance', [ReportController::class, 'stockBalance']); 
+
+    Route::get('logs', [ActivityLogController::class, 'index']);
 
 
 

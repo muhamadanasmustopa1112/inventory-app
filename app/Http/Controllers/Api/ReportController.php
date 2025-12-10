@@ -117,7 +117,7 @@ class ReportController extends Controller
         return response()->json([
             'summary' => [
                 'total_transactions' => $paginator->total(),
-                'total_units_in_page'=> $totalUnitsIn, // total unit di halaman ini (bukan seluruh periode)
+                'total_units_in_page'=> $totalUnitsIn,
                 'date_from'          => $data['date_from'] ?? null,
                 'date_to'            => $data['date_to'] ?? null,
                 'warehouse_id'       => $data['warehouse_id'] ?? null,
@@ -131,6 +131,75 @@ class ReportController extends Controller
             ],
         ]);
     }
+
+    
+    public function stockOut(Request $request)
+    {
+        $data = $request->validate([
+            'date_from'    => ['nullable', 'date'],
+            'date_to'      => ['nullable', 'date'],
+            'warehouse_id' => ['nullable', 'integer', 'exists:warehouses,id'],
+            'per_page'     => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $perPage = $data['per_page'] ?? 20;
+
+        $query = StockOut::with(['warehouse', 'items.product'])
+            ->orderByDesc('date_out');
+
+        if (! empty($data['date_from'])) {
+            $query->whereDate('date_out', '>=', $data['date_from']);
+        }
+
+        if (! empty($data['date_to'])) {
+            $query->whereDate('date_out', '<=', $data['date_to']);
+        }
+
+        if (! empty($data['warehouse_id'])) {
+            $query->where('warehouse_id', $data['warehouse_id']);
+        }
+
+        $paginator = $query->paginate($perPage);
+
+        // ambil id dari halaman ini
+        $stockOutIds = collect($paginator->items())->pluck('id');
+
+        $totalUnitsOut = 0;
+        if ($stockOutIds->isNotEmpty()) {
+            $totalUnitsOut = DB::table('stock_out_items')
+                ->whereIn('stock_out_id', $stockOutIds)
+                ->sum('qty');
+        }
+
+        // Debug (opsional). Hapus atau turunkan level log di production.
+        \Log::debug('stockOut summary debug', [
+            'filter' => $data,
+            'stock_out_ids_count' => $stockOutIds->count(),
+            'stock_out_ids_sample' => $stockOutIds->take(10)->values()->all(),
+            'totalUnitsOut' => $totalUnitsOut,
+        ]);
+
+        return response()->json([
+            'summary' => [
+                'total_transactions'    => $paginator->total(),
+                // gunakan key yang benar
+                'total_units_out_page'  => $totalUnitsOut,
+                // sediakan alias sementara agar klien lama tetap kebagian (boleh dihapus nanti)
+                'total_units_in_page'   => $totalUnitsOut,
+                'date_from'             => $data['date_from'] ?? null,
+                'date_to'               => $data['date_to'] ?? null,
+                'warehouse_id'          => $data['warehouse_id'] ?? null,
+            ],
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+                'last_page'    => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
 
     public function stockBalance(Request $request)
     {

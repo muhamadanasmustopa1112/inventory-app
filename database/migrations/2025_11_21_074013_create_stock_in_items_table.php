@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('stock_in_id')->constrained('stock_ins')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('qty');
-            $table->decimal('sell_price', 15, 2);
+            $table->decimal('sell_price', 15, 2)->nullable();
             $table->decimal('buy_price', 15, 2)->nullable();
             $table->timestamps();
         });

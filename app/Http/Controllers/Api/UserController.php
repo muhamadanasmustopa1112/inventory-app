@@ -63,4 +63,43 @@ class UserController extends Controller
             'data'    => $user,
         ], 201);
     }
+
+    public function update(Request $request, User $user)
+    {
+        if ($request->user()->role !== 'ADMIN') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $validated = $request->validate([
+            'name'     => ['sometimes', 'string', 'max:255'],
+            'email'    => ['sometimes', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'password' => ['sometimes', 'string', 'min:8'],
+            'role'     => ['sometimes', 'string', Rule::in(['ADMIN', 'WAREHOUSE'])],
+            'warehouse_id' => ['nullable', 'exists:warehouses,id'],
+        ]);
+
+        if (($validated['role'] ?? $user->role) === 'WAREHOUSE') {
+            if (empty($validated['warehouse_id']) && empty($user->warehouse_id)) {
+                return response()->json([
+                    'message' => 'warehouse_id wajib diisi untuk user WAREHOUSE',
+                    'errors'  => [
+                        'warehouse_id' => ['Pilih gudang untuk user role WAREHOUSE.'],
+                    ],
+                ], 422);
+            }
+        }
+
+        if (!empty($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        }
+
+        $user->update($validated);
+        $user->load('warehouse');
+
+        return response()->json([
+            'message' => 'User berhasil diperbarui',
+            'data' => $user,
+        ]);
+    }
+
 }

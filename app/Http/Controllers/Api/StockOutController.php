@@ -33,7 +33,6 @@ class StockOutController extends Controller
     }
 
 
-
     public function scanQr(Request $request)
     {
         $data = $request->validate([

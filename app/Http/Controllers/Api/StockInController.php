@@ -95,14 +95,13 @@ class StockInController extends Controller
     {
         $product = Product::findOrFail($stockInItem->product_id);
 
-        // Hitung sudah ada berapa unit untuk produk ini
         $existingCount = ProductUnit::where('product_id', $product->id)->count();
 
         $unitsToCreate = [];
 
         for ($i = 1; $i <= $stockInItem->qty; $i++) {
-            $sequenceNumber = $existingCount + $i; // lanjut nomor sebelumnya
-            $suffix = str_pad($sequenceNumber, 6, '0', STR_PAD_LEFT); // 000001, 000002, ...
+            $sequenceNumber = $existingCount + $i; 
+            $suffix = str_pad($sequenceNumber, 6, '0', STR_PAD_LEFT); 
             $unitCode = $product->sku . '-' . $suffix;
 
             $unitsToCreate[] = [
@@ -110,7 +109,7 @@ class StockInController extends Controller
                 'warehouse_id'     => $warehouseId,
                 'stock_in_item_id' => $stockInItem->id,
                 'unit_code'        => $unitCode,
-                'qr_value'         => $unitCode, // nanti bisa diganti URL kalau mau
+                'qr_value'         => $unitCode, 
                 'status'           => 'IN_STOCK',
                 'stock_out_item_id'=> null,
                 'created_at'       => now(),

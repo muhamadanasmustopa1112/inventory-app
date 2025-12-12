@@ -36,7 +36,7 @@ class ProductUnitController extends Controller
             });
         }
 
-        $units = $query->orderBy('id', 'asc')->paginate(100);
+        $units = $query->orderBy('id', 'asc')->paginate(2000);
 
         return response()->json($units);
     }

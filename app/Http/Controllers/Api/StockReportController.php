@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\StockOut;
 use Illuminate\Support\Facades\DB;
 
 class StockReportController extends Controller
@@ -98,6 +99,54 @@ class StockReportController extends Controller
 
         return response()->json([
             'data' => $rows,
+        ]);
+    }
+
+    public function export(Request $request)
+    {
+        $stockOuts = StockOut::with([
+            'warehouse:id,name',
+            'buyer:id,name',
+            'items.product:id,name,sku',
+            'items.productUnits:id,stock_out_item_id,unit_code'
+        ])
+        ->when($request->warehouse_id, fn ($q) =>
+            $q->where('warehouse_id', $request->warehouse_id)
+        )
+        ->when($request->buyer_id, fn ($q) =>
+            $q->where('buyer_id', $request->buyer_id)
+        )
+        ->when($request->date_from, fn ($q) =>
+            $q->whereDate('date_out', '>=', $request->date_from)
+        )
+        ->when($request->date_to, fn ($q) =>
+            $q->whereDate('date_out', '<=', $request->date_to)
+        )
+        ->orderBy('date_out', 'desc')
+        ->get();
+
+        $rows = [];
+
+        foreach ($stockOuts as $stockOut) {
+            foreach ($stockOut->items as $item) {
+                foreach ($item->productUnits as $unit) {
+                    $rows[] = [
+                        'Tanggal'      => $stockOut->date_out->format('Y-m-d'),
+                        'No Referensi' => $stockOut->reference,
+                        'Gudang'       => $stockOut->warehouse?->name,
+                        'Buyer'        => $stockOut->buyer?->name,
+                        'Produk'       => $item->product?->name,
+                        'SKU'          => $item->product?->sku,
+                        'Unit Code'    => $unit->unit_code,
+                        'Catatan'      => $stockOut->note,
+                    ];
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $rows
         ]);
     }
 }

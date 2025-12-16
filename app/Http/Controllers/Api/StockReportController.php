@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\ProductUnit;
 use App\Models\StockOut;
 use Illuminate\Support\Facades\DB;
 
@@ -147,6 +148,51 @@ class StockReportController extends Controller
         return response()->json([
             'success' => true,
             'data' => $rows
+        ]);
+    }
+
+    public function exportUnits(Request $request)
+    {
+        $query = ProductUnit::query()
+            ->with([
+                'product:id,sku,name',
+                'warehouse:id,name',
+                'stockInItem.stockIn:id,date_in,reference,created_by',
+                'stockInItem.stockIn.user:id,name',
+            ])
+            ->whereNotNull('stock_in_item_id');
+
+        if ($request->filled('date_from')) {
+            $query->whereHas('stockInItem.stockIn', function ($q) use ($request) {
+                $q->whereDate('date_in', '>=', $request->date_from);
+            });
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereHas('stockInItem.stockIn', function ($q) use ($request) {
+                $q->whereDate('date_in', '<=', $request->date_to);
+            });
+        }
+
+        $units = $query
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function ($unit) {
+                return [
+                    'tanggal_masuk' => optional($unit->stockInItem?->stockIn?->date_in)
+                        ?->format('Y-m-d'),
+                    'reference'     => $unit->stockInItem?->stockIn?->reference,
+                    'sku'           => $unit->product?->sku,
+                    'product_name'  => $unit->product?->name,
+                    'unit_code'     => $unit->unit_code,
+                    'warehouse'     => $unit->warehouse?->name,
+                    'status'        => $unit->status,
+                    'created_by'    => $unit->stockInItem?->stockIn?->user?->name,
+                ];
+            });
+
+        return response()->json([
+            'data' => $units,
         ]);
     }
 }

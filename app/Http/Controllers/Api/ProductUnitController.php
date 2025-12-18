@@ -11,7 +11,7 @@ class ProductUnitController extends Controller
  
     public function index(Request $request)
     {
-        $query = ProductUnit::with(['product', 'warehouse']);
+        $query = ProductUnit::with(['product', 'warehouse', 'stockInItem.stockIn']);
 
         if ($request->filled('warehouse_id')) {
             $query->where('warehouse_id', $request->warehouse_id);

@@ -20,6 +20,8 @@ class ProductUnit extends Model
         'stock_out_item_id',
     ];
 
+    protected $appends = ['stock_in_id'];
+
     public function product()
     {
         return $this->belongsTo(Product::class);
@@ -33,6 +35,11 @@ class ProductUnit extends Model
     public function stockInItem()
     {
         return $this->belongsTo(StockInItem::class);
+    }
+
+    public function getStockInIdAttribute()
+    {
+        return $this->stockInItem?->stock_in_id;
     }
 
     public function stockOutItem()

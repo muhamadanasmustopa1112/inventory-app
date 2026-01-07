@@ -10,54 +10,120 @@ class ProductUnitQrController extends Controller
 {
     public function show(ProductUnit $productUnit)
     {
-        $text = $productUnit->qr_value; 
+        $text = $productUnit->qr_value;
         $size = 300;
 
-        // 1) Generate QR PNG pakai simple-qrcode (ini sudah pasti jalan, karena kode kamu sebelumnya OK)
+        /* =======================
+         * GENERATE QR
+         * ======================= */
         $qrPng = QrCode::format('png')
             ->size($size)
             ->margin(1)
             ->generate($text);
 
-        // 2) Ubah string PNG jadi resource gambar GD
         $qrImage = imagecreatefromstring($qrPng);
-        if ($qrImage === false) {
-            abort(500, 'Gagal membaca gambar QR');
+        if (!$qrImage) {
+            abort(500, 'Gagal membuat QR');
         }
 
         $qrWidth  = imagesx($qrImage);
         $qrHeight = imagesy($qrImage);
 
-        // 3) Tambah tinggi untuk area teks
-        $padding       = 40; // tinggi area teks
-        $canvasHeight  = $qrHeight + $padding;
+        /* =======================
+         * LOAD LOGO
+         * ======================= */
+        $logoPath = public_path('assets/logo-telkomaterial.png');
+        if (!file_exists($logoPath)) {
+            abort(500, 'Logo Telkomaterial tidak ditemukan');
+        }
 
-        // 4) Canvas baru (background putih)
+        $logo = imagecreatefrompng($logoPath);
+        imagesavealpha($logo, true);
+        $logo = imagecropauto($logo, IMG_CROP_TRANSPARENT);
+
+        $logoWidth  = imagesx($logo);
+        $logoHeight = imagesy($logo);
+
+        $logoTargetWidth  = (int) ($qrWidth * 1);
+        $logoTargetHeight = (int) (
+            ($logoHeight / $logoWidth) * $logoTargetWidth
+        );
+
+        /* =======================
+         * POSISI (TIDAK DIUBAH)
+         * ======================= */
+        $logoPadding = 2;
+
+        $opticalOffset = (int) ($logoTargetWidth * 0.03);
+        $logoX = (int)(($qrWidth - $logoTargetWidth) / 2) + $opticalOffset;
+        $logoY = -20;
+
+        $qrY = $logoTargetHeight + $logoPadding - 70;
+
+        $font = 5;
+        $textWidth = imagefontwidth($font) * strlen($text);
+        $textX = (int)(($qrWidth - $textWidth) / 2);
+        $textY = $qrY + $qrHeight + 5;
+
+        /* =======================
+         * HITUNG CANVAS (AUTO FIT)
+         * ======================= */
+        $bottomPadding = 25;
+        $canvasHeight = $textY + imagefontheight($font) + $bottomPadding;
+
         $canvas = imagecreatetruecolor($qrWidth, $canvasHeight);
-        $white  = imagecolorallocate($canvas, 255, 255, 255);
+
+        $white = imagecolorallocate($canvas, 255, 255, 255);
         imagefill($canvas, 0, 0, $white);
 
-        // 5) Tempel QR di bagian atas
-        imagecopy($canvas, $qrImage, 0, 0, 0, 0, $qrWidth, $qrHeight);
+        /* =======================
+         * DRAW LOGO
+         * ======================= */
+        imagecopyresampled(
+            $canvas,
+            $logo,
+            $logoX,
+            $logoY,
+            0,
+            0,
+            $logoTargetWidth,
+            $logoTargetHeight,
+            $logoWidth,
+            $logoHeight
+        );
 
-        // 6) Tulis teks di bawah QR (font default bawaan GD)
-        $black     = imagecolorallocate($canvas, 0, 0, 0);
-        $font      = 5; // built-in font 1–5
-        $textWidth = imagefontwidth($font) * strlen($text);
-        $x         = (int) (($qrWidth - $textWidth) / 2); // center
-        $y         = $qrHeight + 10; // sedikit di bawah QR
+        /* =======================
+         * DRAW QR
+         * ======================= */
+        imagecopy(
+            $canvas,
+            $qrImage,
+            0,
+            $qrY,
+            0,
+            0,
+            $qrWidth,
+            $qrHeight
+        );
 
-        imagestring($canvas, $font, max(0, $x), $y, $text, $black);
+        /* =======================
+         * DRAW TEXT
+         * ======================= */
+        $black = imagecolorallocate($canvas, 0, 0, 0);
+        imagestring($canvas, $font, max(0, $textX), $textY, $text, $black);
 
-        // 7) Output lagi sebagai PNG
+        /* =======================
+         * OUTPUT
+         * ======================= */
         ob_start();
         imagepng($canvas);
         $output = ob_get_clean();
 
-        // 8) Bersihkan resource
         imagedestroy($qrImage);
+        imagedestroy($logo);
         imagedestroy($canvas);
 
-        return response($output)->header('Content-Type', 'image/png');
+        return response($output)
+            ->header('Content-Type', 'image/png');
     }
 }

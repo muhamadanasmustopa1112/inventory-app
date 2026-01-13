@@ -151,48 +151,48 @@ class StockReportController extends Controller
         ]);
     }
 
-    public function exportUnits(Request $request)
+    public function exportStockOutUnits(Request $request)
     {
-        $query = ProductUnit::query()
-            ->with([
-                'product:id,sku,name',
-                'warehouse:id,name',
-                'stockInItem.stockIn:id,date_in,reference,created_by',
-                'stockInItem.stockIn.user:id,name',
-            ])
-            ->whereNotNull('stock_in_item_id');
+        $query = DB::table('product_units as pu')
+            ->join('stock_out_items as soi', 'soi.id', '=', 'pu.stock_out_item_id')
+            ->join('stock_outs as so', 'so.id', '=', 'soi.stock_out_id')
+            ->join('products as p', 'p.id', '=', 'pu.product_id')
+            ->join('warehouses as w', 'w.id', '=', 'so.warehouse_id')
+            ->leftJoin('buyers as b', 'b.id', '=', 'so.buyer_id')
+            ->where('pu.status', 'SOLD')
+            ->select(
+                DB::raw('DATE(so.date_out) as tanggal'),
+                'so.reference as no_referensi',
+                'w.name as gudang',
+                'b.name as buyer',
+                'p.name as produk',
+                'p.sku as sku',
+                'pu.unit_code as unit_code',
+                'so.note as catatan'
+            )
+            ->orderBy('so.date_out', 'desc');
+
+        if ($request->filled('warehouse_id')) {
+            $query->where('so.warehouse_id', $request->warehouse_id);
+        }
 
         if ($request->filled('date_from')) {
-            $query->whereHas('stockInItem.stockIn', function ($q) use ($request) {
-                $q->whereDate('date_in', '>=', $request->date_from);
-            });
+            $query->whereDate('so.date_out', '>=', $request->date_from);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereHas('stockInItem.stockIn', function ($q) use ($request) {
-                $q->whereDate('date_in', '<=', $request->date_to);
-            });
+            $query->whereDate('so.date_out', '<=', $request->date_to);
         }
 
-        $units = $query
-            ->orderBy('id', 'desc')
-            ->get()
-            ->map(function ($unit) {
-                return [
-                    'tanggal_masuk' => optional($unit->stockInItem?->stockIn?->date_in)
-                        ?->format('Y-m-d'),
-                    'reference'     => $unit->stockInItem?->stockIn?->reference,
-                    'sku'           => $unit->product?->sku,
-                    'product_name'  => $unit->product?->name,
-                    'unit_code'     => $unit->unit_code,
-                    'warehouse'     => $unit->warehouse?->name,
-                    'status'        => $unit->status,
-                    'created_by'    => $unit->stockInItem?->stockIn?->user?->name,
-                ];
-            });
+        if ($request->filled('buyer_id')) {
+            $query->where('so.buyer_id', $request->buyer_id);
+        }
+
+        $rows = $query->get();
 
         return response()->json([
-            'data' => $units,
+            'success' => true,
+            'data' => $rows,
         ]);
     }
 }

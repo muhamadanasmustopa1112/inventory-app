@@ -153,46 +153,31 @@ class StockReportController extends Controller
 
     public function exportStockOutUnits(Request $request)
     {
-        $query = DB::table('product_units as pu')
-            ->join('stock_out_items as soi', 'soi.id', '=', 'pu.stock_out_item_id')
-            ->join('stock_outs as so', 'so.id', '=', 'soi.stock_out_id')
+        $rows = DB::table('product_units as pu')
             ->join('products as p', 'p.id', '=', 'pu.product_id')
-            ->join('warehouses as w', 'w.id', '=', 'so.warehouse_id')
+            ->join('warehouses as w', 'w.id', '=', 'pu.warehouse_id')
+            ->leftJoin('stock_out_items as soi', 'soi.id', '=', 'pu.stock_out_item_id')
+            ->leftJoin('stock_outs as so', 'so.id', '=', 'soi.stock_out_id')
             ->leftJoin('buyers as b', 'b.id', '=', 'so.buyer_id')
             ->where('pu.status', 'SOLD')
+            ->whereNotNull('pu.stock_out_item_id')
             ->select(
-                DB::raw('DATE(so.date_out) as tanggal'),
-                'so.reference as no_referensi',
-                'w.name as gudang',
-                'b.name as buyer',
+                'pu.unit_code as unit_code',
                 'p.name as produk',
                 'p.sku as sku',
-                'pu.unit_code as unit_code',
-                'so.note as catatan'
+                'w.name as gudang',
+                DB::raw('COALESCE(b.name, "-") as buyer'),
+                DB::raw('COALESCE(so.reference, "-") as no_referensi'),
+                DB::raw('COALESCE(so.note, "-") as catatan'),
+                DB::raw('COALESCE(so.created_at, pu.updated_at) as tanggal_transaksi')
             )
-            ->orderBy('so.date_out', 'desc');
-
-        if ($request->filled('warehouse_id')) {
-            $query->where('so.warehouse_id', $request->warehouse_id);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('so.date_out', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('so.date_out', '<=', $request->date_to);
-        }
-
-        if ($request->filled('buyer_id')) {
-            $query->where('so.buyer_id', $request->buyer_id);
-        }
-
-        $rows = $query->get();
+            ->orderBy('tanggal_transaksi', 'desc')
+            ->get();
 
         return response()->json([
             'success' => true,
-            'data' => $rows,
+            'total'   => $rows->count(),
+            'data'    => $rows,
         ]);
     }
 }

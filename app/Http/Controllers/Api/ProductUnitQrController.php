@@ -60,16 +60,27 @@ class ProductUnitQrController extends Controller
 
         $qrY = $logoTargetHeight + $logoPadding - 70;
 
-        $font = 5;
-        $textWidth = imagefontwidth($font) * strlen($text);
+        /* =======================
+         * HITUNG TEXT (TTF)
+         * ======================= */
+        $fontSize = 25; // <<< UBAH UKURAN FONT DI SINI
+        $fontPath = public_path('fonts/Roboto-Bold.ttf');
+
+        if (!file_exists($fontPath)) {
+            abort(500, 'Font tidak ditemukan');
+        }
+
+        $bbox = imagettfbbox($fontSize, 0, $fontPath, $text);
+        $textWidth = $bbox[2] - $bbox[0];
+
         $textX = (int)(($qrWidth - $textWidth) / 2);
-        $textY = $qrY + $qrHeight + 5;
+        $textY = $qrY + $qrHeight + 30;
 
         /* =======================
          * HITUNG CANVAS (AUTO FIT)
          * ======================= */
         $bottomPadding = 25;
-        $canvasHeight = $textY + imagefontheight($font) + $bottomPadding;
+        $canvasHeight = $textY + $bottomPadding;
 
         $canvas = imagecreatetruecolor($qrWidth, $canvasHeight);
 
@@ -107,10 +118,20 @@ class ProductUnitQrController extends Controller
         );
 
         /* =======================
-         * DRAW TEXT
+         * DRAW TEXT (TTF)
          * ======================= */
         $black = imagecolorallocate($canvas, 0, 0, 0);
-        imagestring($canvas, $font, max(0, $textX), $textY, $text, $black);
+
+        imagettftext(
+            $canvas,
+            $fontSize,
+            0,
+            $textX,
+            $textY,
+            $black,
+            $fontPath,
+            $text
+        );
 
         /* =======================
          * OUTPUT

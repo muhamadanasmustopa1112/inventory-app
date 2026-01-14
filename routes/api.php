@@ -57,8 +57,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/stock-out', [ReportController::class, 'stockOut']);
     Route::get('/reports/stock-in', [ReportController::class, 'stockIn']);     
     Route::get('/reports/stock-balance', [ReportController::class, 'stockBalance']); 
-    Route::get('/reports/stock-out/export-units',[StockReportController::class, 'export']);
-    Route::get('/reports/stock-in/export-units',[StockReportController::class, 'exportStockOutUnits']);
+    Route::get('/reports/stock-out/export-units',[StockReportController::class, 'exportOut']);
+    Route::get('/reports/stock-in/export-units',[StockReportController::class, 'exportUnits']);
 
     Route::get('logs', [ActivityLogController::class, 'index']);
 
